@@ -1,0 +1,9 @@
+streamlit
+torch
+torchvision
+face-recognition
+opencv-python-headless
+pandas
+werkzeug
+yt-dlp
+Pillow

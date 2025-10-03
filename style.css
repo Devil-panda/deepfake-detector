@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Saira:ital,wght@0,100..900;1,100..900&display=swap');
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    background-color: #1e1e1e;
+    color: #fafafa;
+}
+
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    padding-left: 5rem;
+    padding-right: 5rem;
+}
+
+h1, h2, h3 {
+    font-family: "Saira", sans-serif !important; 
+    color: #ffffff;
+    font-weight: 600;
+}
+
+[data-testid="stForm"] {
+    border: 1px solid #4a4a4a;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.stTextInput > div > div {
+    background-color: rgba(30, 30, 30, 0.8);
+    border: 1px solid rgba(255, 59, 48, 0.4);
+    border-radius: 8px;
+}
+.stTextInput > div > div > input {
+    background: transparent;
+    border: none;
+    color: #fafafa;
+}
+/* Style the container when an element inside it is focused */
+.stTextInput > div > div:focus-within {
+    border-color: #ff3b30;
+    box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.4);
+}
+.stTextInput > div > label {
+    color: #b0b0b0;
+    font-weight: 500;
+}
+
+.stButton>button {
+    border-radius: 8px;
+    background-color: #ff3b30; /* Red theme color */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+.stButton>button:hover {
+    background-color: #ff6a6a; /* Lighter red on hover */
+}
+.stButton>button:active,
+.stButton>button:focus {
+    color: white !important;
+    background-color: #ff3b30 !important;
+}
+
+[data-baseweb="tab-list"] {
+    justify-content: center;
+    border-bottom: 1px solid #4a4a4a !important;
+    gap: 1.5rem;
+}
+[data-baseweb="tab"] {
+    font-size: 1.1rem;
+    font-weight: 500;
+    background-color: transparent;
+    transition: all 0.3s ease;
+    border: none;
+    color: #b0b0b0;
+    padding: 10px 5px;
+}
+[data-baseweb="tab"]:hover {
+    color: white;
+}
+[data-baseweb="tab"][aria-selected="true"] {
+    color: #ff3b30 !important;
+    border-bottom: 2px solid #ff3b30;
+}
+
+.stAlert {
+    border-radius: 8px;
+    background-color: rgba(45, 45, 45, 0.8);
+    border: 1px solid #5a5a5a;
+}
+.stAlert.st-success { color: #34c759; }
+.stAlert.st-error { color: #ff3b30; }
+.stAlert.st-warning { color: #ff9500; }
+
+.css-1d391kg {
+    background-color: #2d2d2d;
+    border-right: 1px solid #4a4a4a;
+}
