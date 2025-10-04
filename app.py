@@ -3,8 +3,7 @@ import torch
 from torch import nn
 from torchvision import models, transforms
 from torch.utils.data import Dataset
-import face_recognition
-import cv2
+import cv2 
 import numpy as np
 import os
 import tempfile
@@ -30,11 +29,6 @@ def local_css(file_name):
         st.warning(f"CSS file not found: {file_name}. Using default styles.")
 
 def set_login_background(image_file):
-    """
-    Sets a background image and custom theme for the login page.
-    Args:
-    image_file (str): The path to the image file.
-    """
     if not os.path.exists(image_file):
         st.warning(f"Background image file not found: {image_file}. Skipping background.")
         return
@@ -172,39 +166,59 @@ class Model(nn.Module):
         x_lstm, _ = self.lstm(x, None)
         return fmap, self.dp(self.linear1(x_lstm[:, -1, :]))
 
-def get_face_from_video(video_path, frame_skip=5):
+@st.cache_resource
+def load_face_cascade():
+    """Loads the Haar Cascade face detector from OpenCV."""
+    cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    face_cascade = cv2.CascadeClassifier(cascade_path)
+    return face_cascade
+
+def get_face_from_video(video_path, face_cascade, frame_skip=5):
     cap = cv2.VideoCapture(video_path)
     faces = []
     frame_count = 0
     while(cap.isOpened()):
-        ret, frame = cap.read()
+        ret, frame = cap.read()  
         if ret:
             if frame_count % frame_skip == 0:
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                face_locations = face_recognition.face_locations(rgb_frame)
-                if face_locations:
-                    top, right, bottom, left = face_locations[0]
-                    faces.append(Image.fromarray(rgb_frame[top:bottom, left:right]))
+                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                face_locations = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+                
+                if len(face_locations) > 0:
+                    x, y, w, h = face_locations[0] 
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    faces.append(Image.fromarray(rgb_frame[y:y+h, x:x+w]))
             frame_count += 1
-        else: break
+        else:
+            break
     cap.release()
     return faces
 
-def get_face_from_image(image):
+def get_face_from_image(image, face_cascade):
     rgb_image = np.array(image.convert('RGB'))
-    face_locations = face_recognition.face_locations(rgb_image)
-    if face_locations:
-        top, right, bottom, left = face_locations[0]
-        return Image.fromarray(rgb_image[top:bottom, left:right])
+    gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
+    
+    face_locations = face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    
+    if len(face_locations) > 0:
+        x, y, w, h = face_locations[0]
+        return Image.fromarray(rgb_image[y:y+h, x:x+w])
     return None
 
 class validation_dataset(Dataset):
-    def __init__(self, video_path, sequence_length=20, transform=None):
-        self.video_path, self.transform, self.count = video_path, transform, sequence_length
-    def __len__(self): return 1
+    def __init__(self, video_path, face_cascade, sequence_length=20, transform=None):
+        self.video_path = video_path
+        self.transform = transform
+        self.count = sequence_length
+        self.face_cascade = face_cascade
+
+    def __len__(self):
+        return 1
+
     def __getitem__(self, idx):
-        frames = get_face_from_video(self.video_path)
-        if not frames: return torch.zeros((self.count, 3, 112, 112))
+        frames = get_face_from_video(self.video_path, self.face_cascade)
+        if not frames:
+            return torch.zeros((self.count, 3, 112, 112))
         if len(frames) > self.count:
             indices = np.linspace(0, len(frames) - 1, self.count, dtype=int)
             frames = [frames[i] for i in indices]
@@ -258,8 +272,9 @@ def clear_last_analysis():
         del st.session_state.last_analysis
 
 def main_app():
-    header_cols = st.columns([1, 2, 1])
+    face_cascade = load_face_cascade()
 
+    header_cols = st.columns([1, 2, 1])
     with header_cols[0]:
         col1, col2 = st.columns([0.8, 1.5]) 
         with col1:
@@ -425,7 +440,7 @@ def main_app():
                         tfile.write(uploaded_video.getvalue())
                         temp_video_path = tfile.name
                     
-                    video_tensor = validation_dataset(temp_video_path, sequence_length=20, transform=transform_list)[0]
+                    video_tensor = validation_dataset(temp_video_path, face_cascade, sequence_length=20, transform=transform_list)[0]
                     prediction, confidence, probabilities = predict(model, video_tensor, device)
                     os.remove(temp_video_path)
                     
@@ -457,7 +472,7 @@ def main_app():
                 st.session_state.processing = True
                 with st.spinner('Analyzing image...'):
                     image = Image.open(uploaded_image)
-                    face = get_face_from_image(image)
+                    face = get_face_from_image(image, face_cascade)
                     if face:
                         image_tensor = transform_list(face)
                         prediction, confidence, probabilities = predict(model, image_tensor, device)
@@ -495,7 +510,7 @@ def main_app():
                     temp_video_path, video_title = download_video_from_url(video_url)
                 if temp_video_path:
                     with st.spinner('Analyzing video...'):
-                        video_tensor = validation_dataset(temp_video_path, sequence_length=20, transform=transform_list)[0]
+                        video_tensor = validation_dataset(temp_video_path, face_cascade, sequence_length=20, transform=transform_list)[0]
                         prediction, confidence, probabilities = predict(model, video_tensor, device)
                         with open(temp_video_path, "rb") as f: video_bytes = f.read()
                         os.remove(temp_video_path)
@@ -567,10 +582,13 @@ def login_register_page():
     )
 
 db.init_db()
-local_css("style.css") # The base styles are still loaded
+local_css("style.css") 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = load_model(device)
-if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
+
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
 if st.session_state.get('logged_in', False): 
     main_app()
     st.markdown("---")
